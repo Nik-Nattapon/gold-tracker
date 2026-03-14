@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { fetchLatestGoldPrice } from './services/goldApi';
 import { analyzeGoldTrend } from './utils/analyzer';
+// Import Components จาก Recharts
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [data, setData] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [chartData, setChartData] = useState([]); // State สำหรับเก็บข้อมูลกราฟ
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,6 +21,14 @@ function App() {
       
       const trendAnalysis = analyzeGoldTrend(result.historicalPrices);
       setAnalysis(trendAnalysis);
+
+      // แปลงข้อมูล historicalPrices ให้เป็น Object array สำหรับ Recharts
+      const formattedChartData = result.historicalPrices.map((price, index) => ({
+        time: `Day ${index + 1}`,
+        price: price
+      }));
+      setChartData(formattedChartData);
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,6 +55,9 @@ function App() {
       default: return <Minus className="text-gray-500 w-8 h-8" />;
     }
   };
+
+  // กำหนดสีของเส้นกราฟตาม Trend
+  const chartColor = analysis?.trend === 'down' ? '#ef4444' : '#10b981';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -75,12 +89,13 @@ function App() {
               <div className="flex-1 space-y-4 py-1">
                 <div className="h-4 bg-slate-200 rounded w-3/4"></div>
                 <div className="h-8 bg-slate-200 rounded w-1/2"></div>
+                <div className="h-32 bg-slate-200 rounded w-full mt-4"></div>
               </div>
             </div>
           ) : data && analysis && (
             <>
               {/* Price Section */}
-              <div className="flex justify-between items-end border-b pb-6">
+              <div className="flex justify-between items-end">
                 <div>
                   <p className="text-sm text-slate-500 uppercase tracking-wide font-semibold mb-1">Current Price</p>
                   <div className="flex items-baseline space-x-2">
@@ -93,8 +108,47 @@ function App() {
                 {getTrendIcon(analysis.trend)}
               </div>
 
+              {/* Chart Section */}
+              <div className="h-48 w-full mt-4 mb-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    {/* เส้น Grid แนวนอนบางๆ */}
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="time" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#94a3b8' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      domain={['dataMin - 10', 'auto']} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#94a3b8' }} 
+                      width={40}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      itemStyle={{ color: '#0f172a', fontWeight: 'bold' }}
+                      formatter={(value) => [`$${value}`, 'Price']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="price" 
+                      stroke={chartColor} 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: chartColor, strokeWidth: 2, stroke: '#fff' }} 
+                      activeDot={{ r: 6 }} 
+                      animationDuration={1500}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
               {/* Analysis Section */}
-              <div className="space-y-3">
+              <div className="space-y-3 pt-4 border-t">
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-semibold">AI Analysis</p>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="flex justify-between items-start mb-2">
